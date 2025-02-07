@@ -17,6 +17,13 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10, 20, 10);
 scene.add(light);
 
+// 在初始化物理世界后添加材质
+const blockMaterialPhys = new CANNON.Material();
+blockMaterialPhys.friction = 0.3; // 降低摩擦系数（默认0.3）
+blockMaterialPhys.restitution = 0.5; // 增加弹性系数（默认0.3）
+
+const groundMaterialPhys = new CANNON.Material();
+
 // 创建渲染器
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -30,16 +37,22 @@ controls.minDistance = 5;
 controls.maxDistance = 50;
 controls.maxPolarAngle = Math.PI / 2;
 
-// 物理世界初始化
-const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0);
+const world = new CANNON.World({
+    gravity: new CANNON.Vec3(0, -9.82, 0),
+    // 添加全局默认材质配置
+    defaultContactMaterial: {
+        friction: 0.1,    // 全局摩擦系数
+        restitution: 0.5, // 全局弹性
+        contactEquationStiffness: 1e8 // 提高碰撞硬度
+    }
+});
 
 const cannonDebugger = new CannonDebugger(scene, world, {
 });
 
  
 // 创建地面
-const groundGeometry = new THREE.BoxGeometry(5, 1, 5);
+const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
 const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x008800 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
@@ -47,7 +60,8 @@ scene.add(ground);
 
 const groundBody = new CANNON.Body({
     mass: 0, // 静态
-    shape: new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5)), 
+    material: groundMaterialPhys, // 使用地面材质
+    shape: new CANNON.Box(new CANNON.Vec3(12.5, 0.5, 12.5)),
 });
 groundBody.position.set(0, -0.5, 0);
 world.addBody(groundBody);
@@ -62,20 +76,48 @@ let score = 0;
 function createBlock() {
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     const blockMaterial = new THREE.MeshPhongMaterial({ color: 0x00aaff });
-    const block = new THREE.Mesh(blockGeometry, blockMaterial);
-    block.position.set(-5, previousBlock.mesh.position.y + 1, 0);
-    scene.add(block);
-
-    // 物理方块（初始 mass = 0，不受重力影响）
-    const blockBody = new CANNON.Body({
-        mass: 0, // 初始静态，不受重力影响
-        shape: new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5)), 
-        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 1, 0),
+    const cannonHelper = new CannonDebugger(scene, world, {
+        color: 0xff0000 // 显示为红色线框
     });
-    world.addBody(blockBody);
 
-    movingBlock = { mesh: block, body: blockBody };
+    const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
+    mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
+    scene.add(mesh);
+
+    // **物理引擎部分**
+    const shape = new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5));
+    const body = new CANNON.Body({
+        mass: 0,  // **🚀 禁用重力**
+        material: blockMaterialPhys, // 使用方块材质
+        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 1, 0),
+        shape: shape,
+        allowSleep: false, // 🔥 禁用休眠
+        sleepSpeedLimit: 0.1, // 休眠速度阈值调低
+        sleepTimeLimit: 1 // 休眠时间阈值调低
+    });
+
+    world.addBody(body);
+
+    movingBlock = { mesh, body };
 }
+
+// 提高计算精度
+world.solver.iterations = 20;       // 增加迭代次数（默认10）
+world.solver.tolerance = 0.001;     // 降低容差
+world.broadphase = new CANNON.SAPBroadphase(world); // 使用更高效的碰撞检测
+world.allowSleep = false;           // 禁用自动休眠
+
+// 设置材质间的接触属性
+world.addContactMaterial(
+    new CANNON.ContactMaterial(
+        groundMaterialPhys,
+        blockMaterialPhys,
+        {
+            friction: 0.2,    // 地面对方块的摩擦
+            restitution: 0.5  // 弹性系数
+        }
+    )
+);
 
 // 放置方块（启用重力）
 function placeBlock() {
@@ -84,31 +126,64 @@ function placeBlock() {
     let lastBlock = previousBlock;
     let offset = movingBlock.mesh.position.x - lastBlock.mesh.position.x;
 
-    // 如果方块错位太多，直接失败
+    // 🚀 **如果错位过大，强制失败**
     if (Math.abs(offset) > 2) {
-        console.log("Game Over! Your score: " + score);
-        resetGame();
-        return;
+        // 🔥 关键修改：增强物理效果
+        movingBlock.body.mass = 1;
+        movingBlock.body.material = blockMaterialP        movingBlock.body.addEventListener('preStep', () => {
+            if (movingBlock.body.velocity.x < 4) {
+                movingBlock.body.velocity.x = 5 * Math.sign(offset);
+            }
+            if (movingBlock.body.angularVelocity.z < 6) {
+                movingBlock.body.angularVelocity.z = 8 * Math.sign(offset);
+            }
+        });
     }
+}hys;
+        
+        // 施加更强的速度和旋转
+        movingBlock.body.velocity.set(
+            5 * Math.sign(offset), // 水平速度加倍
+            -3,                    // 适当降低垂直速度
+            0
+        );
+        movingBlock.body.angularVelocity.set(
+            0,
+            0, 
+            8 * Math.sign(offset) // 增加旋转速度
+        );
 
-    // 启用重力 & 质量，方块正式落下
+        // 🔥 确保物理体被唤醒
+        movingBlock.body.wakeUp();
+        movingBlock.body.updateMassProperties();
+
+        // 禁用与地面的高摩擦接触
+        movingBlock.body.material.friction = 0.1;
+
+        setTimeout(() => {
+            alert("Game Over! Your score: " + score);
+            resetGame();
+        }, 2000);
+
+        return;
+    
+
+    // 🚀 **正常放置方块**
     movingBlock.body.mass = 1;
     movingBlock.body.allowSleep = false;
     movingBlock.body.wakeUp();
-    movingBlock.body.updateMassProperties();
+    movingBlock.body.velocity.set(0, -5, 0);
 
-    // **修正: 让方块倾斜 & 倒下**
     if (Math.abs(offset) > 0.5) {
-        // 偏移部分
-        movingBlock.body.position.x += offset * 0.5;
-        movingBlock.body.quaternion.setFromEuler(0, 0, Math.sign(offset) * 0.2);
+        movingBlock.body.angularVelocity.set(0, 0, Math.sign(offset) * 3);
     }
 
     previousBlock = movingBlock;
     movingBlock = null;
     score++;
     createBlock();
-}
+
+
 
 // 监听空格键放置方块
 document.addEventListener("keydown", (event) => {
@@ -143,12 +218,18 @@ function resetGame() {
     createBlock();
 }
 
+let lastTime = 0;
 // 动画循环
 function animate() {
+    
     requestAnimationFrame(animate);
 
+    const delta = (time - lastTime) / 1000;
+    lastTime = time;
+
     // 物理世界更新
-    world.step(1 / 60);
+    // 在 world 初始化时增加碰撞检测频率
+    world.step(1/60, delta, 3); // (固定时间步长, 最大步数, 迭代次数)
     cannonDebugger.update() // Update the CannonDebugger meshes
 
     // 移动方块（只有在未放置时才移动）
@@ -157,6 +238,14 @@ function animate() {
         if (movingBlock.body.position.x > 5 || movingBlock.body.position.x < -5) {
             direction *= -1;
         }
+    }
+
+    if (movingBlock) {
+        console.log(
+            "Velocity:", movingBlock.body.velocity,
+            "Angular:", movingBlock.body.angularVelocity,
+            "Position:", movingBlock.body.position
+        );
     }
 
     // 让 Three.js 物体跟随 Cannon.js 物理对象
@@ -172,6 +261,9 @@ function animate() {
 
     controls.update(); // 🔥 确保 OrbitControls 正常工作
     renderer.render(scene, camera);
+    
+    // 在 animate 循环中更新
+    cannonHelper.update();
 }
 
 // 启动游戏
