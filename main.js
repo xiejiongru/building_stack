@@ -1,78 +1,106 @@
+//════════════════════════════ 核心引擎 ════════════════════════════
 "use strict";
-
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as CANNON from "cannon-es";
 import CannonDebugger from 'cannon-es-debugger'
 
-// 全局调试器
-let cannonHelper;
-
-// 初始化场景
+//■■■■■■■■■■■■■■■■■■■■■■■ 场景系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◇◇◇ 三维场景 ◇◇◇
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+
+//◇◇◇ 物理世界 ◇◇◇
+const world = new CANNON.World({
+    gravity: new CANNON.Vec3(0, -9.82, 0),
+    defaultContactMaterial: {
+        friction: 0.1,     // 全局默认摩擦系数
+        restitution: 0.5,  // 全局弹性系数
+        contactEquationStiffness: 1e8  // 碰撞计算刚度
+    }
+});
+
+//◆◆◆ 物理参数 ◆◆◆
+world.solver.iterations = 20;       // 解算器迭代次数（默认10）
+world.solver.tolerance = 0.001;     // 解算容差
+world.broadphase = new CANNON.SAPBroadphase(world);  // 使用SAP宽相位检测
+world.allowSleep = false;           // 禁用自动休眠
+
+
+//■■■■■■■■■■■■■■■■■■■■■■■ 渲染管线 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//▨▨▨ 相机系统 ▨▨▨
+const camera = new THREE.PerspectiveCamera(
+    75, 
+    window.innerWidth / window.innerHeight, 
+    0.1, 
+    100
+);
 camera.position.set(0, 15, 20);
 camera.lookAt(0, 0, 0);
 
-// 光源
+//▨▨▨ 光照系统 ▨▨▨
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10, 20, 10);
 scene.add(light);
 
-// 物理材质
-const blockMaterialPhys = new CANNON.Material();
-blockMaterialPhys.friction = 0.3;
-blockMaterialPhys.restitution = 0.5;
-
-const groundMaterialPhys = new CANNON.Material();
-
-// 渲染器
+//▨▨▨ 渲染配置 ▨▨▨
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 控制器
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 5;
-controls.maxDistance = 50;
-controls.maxPolarAngle = Math.PI / 2;
 
-// 物理世界
-const world = new CANNON.World({
-    gravity: new CANNON.Vec3(0, -9.82, 0),
-    defaultContactMaterial: {
-        friction: 0.1,
-        restitution: 0.5,
-        contactEquationStiffness: 1e8
-    }
-});
-
-// 地面
+//■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//▶▶▶ 基础元素 ▶▶▶
+//├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
 const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x008800 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
 scene.add(ground);
 
+//├─ 地面物理体
 const groundBody = new CANNON.Body({
-    mass: 0,
-    material: groundMaterialPhys,
+    mass: 0,                        // 静态物体
+    material: new CANNON.Material(),// 物理材质
     shape: new CANNON.Box(new CANNON.Vec3(12.5, 0.5, 12.5)),
 });
 groundBody.position.set(0, -0.5, 0);
 world.addBody(groundBody);
 
-// 游戏状态
-let movingBlock = null;
-let previousBlock = { mesh: ground, body: groundBody };
-let speed = 0.1;
-let direction = 1;
-let score = 0;
+//▶▶▶ 动态元素 ▶▶▶
+let movingBlock = null;             // 当前移动方块
+let previousBlock = {               // 上一个放置方块
+    mesh: ground, 
+    body: groundBody 
+};
 
-// 方块生成
+//▶▶▶ 材质系统 ▶▶▶
+//├─ 方块物理材质（摩擦0.3/弹性0.5）
+const blockMaterialPhys = new CANNON.Material();
+blockMaterialPhys.friction = 0.3;
+blockMaterialPhys.restitution = 0.5;
+
+//└─ 地面物理材质
+const groundMaterialPhys = new CANNON.Material();
+
+// 确保所有物理材质都被正确地添加到物理世界中
+world.addContactMaterial(
+    new CANNON.ContactMaterial(
+        groundMaterialPhys,
+        blockMaterialPhys,
+        {
+            friction: 0.2,
+            restitution: 0.5
+        }
+    )
+);
+
+//■■■■■■■■■■■■■■■■■■■■■■■ 游戏逻辑 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◈◈◈ 核心参数 ◈◈◈
+let speed = 0.1;        // 方块移动速度
+let direction = 1;      // 当前移动方向
+let score = 0;          // 游戏得分
+
+//◉◉◉ 方块管理 ◉◉◉
 function createBlock() {
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     const blockMaterial = new THREE.MeshPhongMaterial({ color: 0x00aaff });
@@ -99,25 +127,6 @@ function createBlock() {
     world.addBody(body);
     movingBlock = { mesh, body };
 }
-
-// 物理参数
-world.solver.iterations = 20;
-world.solver.tolerance = 0.001;
-world.broadphase = new CANNON.SAPBroadphase(world);
-world.allowSleep = false;
-
-world.addContactMaterial(
-    new CANNON.ContactMaterial(
-        groundMaterialPhys,
-        blockMaterialPhys,
-        {
-            friction: 0.2,
-            restitution: 0.5
-        }
-    )
-);
-
-// 方块放置
 function placeBlock() {
     if (!movingBlock) return;
 
@@ -165,14 +174,7 @@ function placeBlock() {
     score++;
     createBlock();
 }
-
-// 事件监听
-document.addEventListener("keydown", (event) => {
-    if (event.code === "Space") placeBlock();
-    if (event.code === "KeyR") resetGame();
-});
-
-// 游戏重置
+//◉◉◉ 游戏重置 ◉◉◉
 function resetGame() {
     while (scene.children.length > 0) scene.remove(scene.children[0]);
     world.bodies = [];
@@ -184,8 +186,26 @@ function resetGame() {
     createBlock();
 }
 
-// 动画循环
+//■■■■■■■■■■■■■■■■■■■■■■■ 控制系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◍◍◍ 用户输入 ◍◍◍
+document.addEventListener("keydown", (event) => {
+    if (event.code === "Space") placeBlock();
+    if (event.code === "KeyR") resetGame();
+});
+
+//◍◍◍ 相机控制 ◍◍◍
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;          // 启用阻尼效果
+controls.dampingFactor = 0.05;          // 阻尼系数
+controls.screenSpacePanning = false;    // 禁用屏幕空间平移
+controls.minDistance = 5;               // 最小缩放距离
+controls.maxDistance = 50;              // 最大缩放距离
+controls.maxPolarAngle = Math.PI / 2;   // 最大俯仰角
+
+//■■■■■■■■■■■■■■■■■■■■■■■ 动画系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 let lastTime = 0;
+let cannonHelper;  // 物理调试器
+
 function animate(time) {
     requestAnimationFrame(animate);
     const delta = (time - lastTime) / 1000;
@@ -213,6 +233,6 @@ function animate(time) {
     renderer.render(scene, camera);
 }
 
-// 启动
+//══════════════════════════ 游戏启动 ═══════════════════════════
 createBlock();
 animate();
