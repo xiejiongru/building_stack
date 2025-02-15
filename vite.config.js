@@ -3,7 +3,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 import glsl from 'vite-plugin-glsl';
 
 export default defineConfig({
-    base: "/three_vite/",
+    base: "./",
     clearScreen: false,
     optimizeDeps: {
         esbuildOptions: {
@@ -22,6 +22,8 @@ export default defineConfig({
         chunkSizeWarningLimit: 1024
     },
     server: {
+        host: 'localhost',
+        port: 3000,
         open: true
     },
     plugins: [
