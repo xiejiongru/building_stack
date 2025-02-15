@@ -4,3 +4,17 @@ body {
   padding: 0;
   overflow: hidden;
 }
+
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  z-index: 100;
+}
+
+#timer {
+  margin-top: 10px;
+}

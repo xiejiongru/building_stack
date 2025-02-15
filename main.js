@@ -1,4 +1,4 @@
-//════════════════════════════ 核心引擎 ════════════════════════════
+//══════════════════════════ 核心引擎 ════════════════════════════
 "use strict";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -99,6 +99,8 @@ world.addContactMaterial(
 let speed = 0.1;        // 方块移动速度
 let direction = 1;      // 当前移动方向
 let score = 0;          // 游戏得分
+let startTime = Date.now(); // 游戏开始时间
+let timerInterval;      // 计时器间隔
 
 //◉◉◉ 方块管理 ◉◉◉
 function createBlock() {
@@ -127,6 +129,7 @@ function createBlock() {
     world.addBody(body);
     movingBlock = { mesh, body };
 }
+
 function placeBlock() {
     if (!movingBlock) return;
 
@@ -153,8 +156,10 @@ function placeBlock() {
         movingBlock.body.updateMassProperties();
         movingBlock.body.material.friction = 0.1;
 
+        clearInterval(timerInterval); // 停止计时器
         setTimeout(() => {
-            alert("Game Over! Your score: " + score);
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            alert(`Game Over! Your score: ${score} | Time: ${elapsedTime}s`);
             resetGame();
         }, 2000);
         return;
@@ -172,8 +177,10 @@ function placeBlock() {
     previousBlock = movingBlock;
     movingBlock = null;
     score++;
+    updateScore();
     createBlock();
 }
+
 //◉◉◉ 游戏重置 ◉◉◉
 function resetGame() {
     while (scene.children.length > 0) scene.remove(scene.children[0]);
@@ -183,7 +190,27 @@ function resetGame() {
     previousBlock = { mesh: ground, body: groundBody };
     movingBlock = null;
     score = 0;
+    startTime = Date.now(); // 重置开始时间
+    updateScore();
+    updateTimer();
     createBlock();
+    startTimer(); // 启动计时器
+}
+
+// 更新分数显示
+function updateScore() {
+    document.getElementById('score').innerText = `Score: ${score}`;
+}
+
+// 更新计时器显示
+function updateTimer() {
+    const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timer').innerText = `Time: ${elapsedTime}s`;
+}
+
+// 启动计时器
+function startTimer() {
+    timerInterval = setInterval(updateTimer, 1000);
 }
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 控制系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
@@ -234,5 +261,5 @@ function animate(time) {
 }
 
 //══════════════════════════ 游戏启动 ═══════════════════════════
-createBlock();
+resetGame(); // 使用 resetGame 启动游戏，以便初始化计时器和分数
 animate();
