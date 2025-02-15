@@ -179,6 +179,11 @@ function placeBlock() {
     score++;
     updateScore();
     createBlock();
+
+    // 更新相机位置和目标
+    camera.position.y = previousBlock.mesh.position.y + 10;
+    controls.target.copy(previousBlock.mesh.position);
+    controls.update();
 }
 
 //◉◉◉ 游戏重置 ◉◉◉
@@ -195,6 +200,11 @@ function resetGame() {
     updateTimer();
     createBlock();
     startTimer(); // 启动计时器
+
+    // 初始化相机位置和目标
+    camera.position.set(0, 15, 20);
+    controls.target.copy(previousBlock.mesh.position);
+    controls.update();
 }
 
 // 更新分数显示
@@ -228,6 +238,8 @@ controls.screenSpacePanning = false;    // 禁用屏幕空间平移
 controls.minDistance = 5;               // 最小缩放距离
 controls.maxDistance = 50;              // 最大缩放距离
 controls.maxPolarAngle = Math.PI / 2;   // 最大俯仰角
+controls.autoRotate = true;             // 自动旋转
+controls.autoRotateSpeed = 0.5;         // 自动旋转速度
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 动画系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 let lastTime = 0;
