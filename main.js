@@ -93,17 +93,14 @@ const visualSystem = (() => {
     }
 
     function initGround() {
-        const geometry = new THREE.CircleGeometry(15, 32);
+        const geometry = new THREE.BoxGeometry(25, 1, 25); // 改为立方体
         const material = new THREE.MeshToonMaterial({
             color: palette.ground,
-            depthWrite: false,
-            transparent: true,
-            opacity: 0.9
+            gradientMap: createColorGradient(palette.ground) // 添加渐变
         });
         const ground = new THREE.Mesh(geometry, material);
         ground.rotation.x = -Math.PI/2;
         ground.position.y = -0.5;
-        window.ground = ground;
         scene.add(ground);
         return ground;
     }
@@ -143,6 +140,18 @@ const physicsSystem = (() => {
 let movingBlock = null;
 let previousBlock = null;
 
+function createColorGradient(baseColor) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 256, 0);
+    gradient.addColorStop(0.2, baseColor);
+    gradient.addColorStop(0.8, baseColor);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 1);
+    return new THREE.CanvasTexture(canvas);
+}
 class GameBlock {
     constructor(position, isGround = false) {
         this.mesh = this.createVisual(isGround);
@@ -151,7 +160,6 @@ class GameBlock {
         this.updateMaterial(isDebugMode); // 将模式切换功能合并到原类中
         this.color = isGround ? 0xE6E6FA : this.getRandomColor();
     }
-
     updateMaterial(debugMode) {
         this.mesh.material = debugMode ? 
             new THREE.MeshBasicMaterial({ wireframe: true }) :
@@ -177,7 +185,7 @@ class GameBlock {
             mass: isGround ? 0 : 1,
             shape: new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5)),
             position: new CANNON.Vec3(...position),
-            material: physicsSystem.blockMaterial
+            material: physicsSystem.blockMaterialPhys // 修正材质引用
         });
         world.addBody(body);
         return body;
@@ -445,49 +453,23 @@ let lastTime = 0;
 let lastLogData = null; // 新增：日志缓存变量
 let arrowHelper = null;
 
-function animate(time=0) {
+function animate(time = 0) {
     requestAnimationFrame(animate);
-    // 物理调试器可见性
-    if (cannonHelper) {
-        cannonHelper.visible = isDebugMode;
-        cannonHelper.update(); // 确保调试器更新
+    
+    // 计算时间差
+    const delta = (time - lastTime) * 0.001;
+    lastTime = time;
+
+    // 单次物理更新
+    world.step(1 / 60, delta, 3);
+
+    if (controls) {  // ✅ 避免 controls 为空时报错
+        controls.update();
+    } else {
+        console.warn("⚠️ controls 为空，无法更新！");  // 添加警告日志
     }
 
-    // 箭头辅助对象逻辑
-    if (isDebugMode && movingBlock) {
-        // 保持原有箭头逻辑...
-    } else if (arrowHelper) {
-        scene.remove(arrowHelper);
-        arrowHelper = null;
-    }
-
-    if (movingBlock) {
-        const velocity = new THREE.Vector3(
-            movingBlock.body.velocity.x,
-            movingBlock.body.velocity.y,
-            movingBlock.body.velocity.z
-        );
-
-        // 动态调整箭头长度（最小长度1）
-        const arrowLength = Math.max(velocity.length() * 0.3, 1);
-
-        arrowHelper = new THREE.ArrowHelper(
-            velocity.clone().normalize(),
-            movingBlock.mesh.position,
-            arrowLength,
-            0xff0000
-        );
-        scene.add(arrowHelper);
-    }
-
-    // 物理世界更新
-    world.step(1/60, delta, 3);
-    if (cannonHelper) cannonHelper.update();
-
-    const delta = (time - lastTime) * 0.001;  // 转换成秒
-    lastTime = time
-    world.step(1 / 60, delta, 3);  // 物理世界更新
-
+    // 同步物理与渲染
     scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh && obj.userData.bodyId) {
             const body = world.bodies.find(b => b.id === obj.userData.bodyId);
@@ -496,11 +478,11 @@ function animate(time=0) {
                 obj.quaternion.copy(body.quaternion);
             }
         }
-    });    
+    });
 
-    cannonHelper.update();  // 调试渲染更新
-    controls.update();  // 相机控制更新
-    renderer.render(scene, camera);  // 渲染场景
+    // 渲染场景
+    controls.update();
+    renderer.render(scene, camera);
 }
 
     // 坠落检测
@@ -589,20 +571,29 @@ function animate(time=0) {
 //══════════════════════════ 游戏启动 ═══════════════════════════
 // 修改初始化流程
 function initializeGame() {
-    // 设置渲染器尺寸
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    document.getElementById('container').appendChild(renderer.domElement);
 
     controls = initControls();
-    initDebugger();
+    console.log("🎮 controls 初始化成功:", controls);
+
+    // 渲染器配置
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 初始化系统
     visualSystem.init();
     physicsSystem.init();
-    
-    // 直接创建初始block
+
+    // 创建初始方块
     previousBlock = new GameBlock([0, -0.5, 0], true);
-    createBlock(); // 而不是调用resetGame
+    createBlock();
+    
+    // 启动动画循环
     animate();
+    console.log("camera 是否已初始化:", camera);
+    console.log("renderer 是否已初始化:", renderer);
+
 }
 
 
