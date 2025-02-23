@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as CANNON from "cannon-es";
-import CannonDebugger from 'cannon-es-debugger'
+// import CannonDebugger from 'cannon-es-debugger'
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 场景系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //◇◇◇ 三维场景 ◇◇◇
@@ -34,25 +34,43 @@ const camera = new THREE.PerspectiveCamera(
     0.1, 
     100
 );
-camera.position.set(0, 15, 20);
+camera.position.set(0, 20, 30);
 camera.lookAt(0, 0, 0);
+console.log("相机位置:", camera.position);
+console.log("相机朝向:", camera.lookAt);
+
 
 //▨▨▨ 光照系统 ▨▨▨
-const light = new THREE.DirectionalLight(0xffffff, 1);
+const light = new THREE.DirectionalLight(0xffffff, 2);
 light.position.set(10, 20, 10);
 scene.add(light);
 
 //▨▨▨ 渲染配置 ▨▨▨
 const renderer = new THREE.WebGLRenderer();
+renderer.setClearColor(0xffffff);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //▶▶▶ 基础元素 ▶▶▶
+const japaneseColors = [
+    0x7B8D8E, // 利休鼠
+    0xE87A90, // 薄红
+    0x6A4C9C, // 桔梗色
+    0x5DAC81, // 若竹色
+    0xF8C3CD, // 樱色
+    0xA5DEE4  // 空色
+];
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 5); // 亮度加大
+scene.add(ambientLight);
+console.log("✅ 环境光已添加");
+
+
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
-const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x008800 });
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x008800, wireframe: true });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
 scene.add(ground);
@@ -104,16 +122,20 @@ let timerInterval;      // 计时器间隔
 
 //◉◉◉ 方块管理 ◉◉◉
 function createBlock() {
+    console.log("📦 正在创建新方块...");
+
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     const blockMaterial = new THREE.MeshPhongMaterial({ color: 0x00aaff });
     
-    cannonHelper = new CannonDebugger(scene, world, {
-        color: 0xff0000
-    });
+    // cannonHelper = new CannonDebugger(scene, world, {
+    //     color: 0xff0000
+    // });
 
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
     mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
     scene.add(mesh);
+
+    console.log("✅ 方块已添加到 scene，位置:", mesh.position); 
 
     const shape = new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5));
     const body = new CANNON.Body({
@@ -127,6 +149,8 @@ function createBlock() {
     });
 
     world.addBody(body);
+    console.log("✅ 物理体已添加到 world，位置:", body.position);
+
     movingBlock = { mesh, body };
 }
 
@@ -186,25 +210,35 @@ function placeBlock() {
     controls.update();
 }
 
+    scene.traverse(obj => {
+        console.log("🔹 场景内物体:", obj.type, obj.name);
+    });
 //◉◉◉ 游戏重置 ◉◉◉
 function resetGame() {
+    console.log("🔄 重置游戏，创建初始方块...");
+    
     while (scene.children.length > 0) scene.remove(scene.children[0]);
     world.bodies = [];
+
     scene.add(ground);
     world.addBody(groundBody);
     previousBlock = { mesh: ground, body: groundBody };
     movingBlock = null;
     score = 0;
-    startTime = Date.now(); // 重置开始时间
+    startTime = Date.now();
     updateScore();
     updateTimer();
-    createBlock();
-    startTimer(); // 启动计时器
 
-    // 初始化相机位置和目标
-    camera.position.set(0, 15, 20);
-    controls.target.copy(previousBlock.mesh.position);
-    controls.update();
+    console.log("🎲 创建方块前, scene.children.length =", scene.children.length);
+    createBlock();
+    console.log("🎲 创建方块后, scene.children.length =", scene.children.length);
+
+    startTimer();
+
+    // // 初始化相机位置和目标
+    // camera.position.set(0, 15, 20);
+    // controls.target.copy(previousBlock.mesh.position);
+    // controls.update();
 }
 
 // 更新分数显示
@@ -228,6 +262,11 @@ function startTimer() {
 document.addEventListener("keydown", (event) => {
     if (event.code === "Space") placeBlock();
     if (event.code === "KeyR") resetGame();
+    if (event.code === "KeyC") {  // 按 "C" 重新调整相机
+        camera.position.set(0, 50, 100);
+        camera.lookAt(0, 0, 0);
+        console.log("📷 相机位置重置:", camera.position);
+    }
 });
 
 //◍◍◍ 相机控制 ◍◍◍
@@ -243,7 +282,7 @@ controls.autoRotateSpeed = 0.5;         // 自动旋转速度
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 动画系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 let lastTime = 0;
-let cannonHelper;  // 物理调试器
+// let cannonHelper;  // 物理调试器
 
 function animate(time) {
     requestAnimationFrame(animate);
@@ -251,11 +290,15 @@ function animate(time) {
     lastTime = time;
 
     world.step(1/60, delta, 3);
-    cannonHelper.update();
+    console.log("🎥 渲染帧");
+    // cannonHelper.update();
 
     if (movingBlock && movingBlock.body.mass === 0) {
         movingBlock.body.position.x += speed * direction;
+        console.log("🎥 更新方块位置:", movingBlock.mesh.position);
         if (Math.abs(movingBlock.body.position.x) > 5) direction *= -1;
+    } else {
+        console.warn("⚠️ `movingBlock` 为空，无法更新位置");
     }
 
     scene.traverse((obj) => {
@@ -265,13 +308,16 @@ function animate(time) {
                 obj.position.copy(body.position);
                 obj.quaternion.copy(body.quaternion);
             }
-        }
+        }console.log("🔹 遍历物体:", obj.type);
     });
 
     controls.update();
+    camera.updateProjectionMatrix(); // 确保相机更新
     renderer.render(scene, camera);
 }
 
 //══════════════════════════ 游戏启动 ═══════════════════════════
-resetGame(); // 使用 resetGame 启动游戏，以便初始化计时器和分数
-animate();
+window.addEventListener('DOMContentLoaded', () => {
+        resetGame();
+        animate();
+    });
