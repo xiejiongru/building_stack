@@ -70,10 +70,18 @@ console.log("✅ 环境光已添加");
 
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
-const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x008800, wireframe: true });
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x008800 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
 scene.add(ground);
+
+// 添加边框
+const groundEdges = new THREE.EdgesGeometry(groundGeometry);
+const groundLine = new THREE.LineSegments(
+    groundEdges,
+    new THREE.LineBasicMaterial({ color: 0x000000 }) // 边框颜色（此处为黑色，可按需求调整）
+);
+ground.add(groundLine);
 
 //├─ 地面物理体
 const groundBody = new CANNON.Body({
@@ -125,15 +133,21 @@ function createBlock() {
     console.log("📦 正在创建新方块...");
 
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
-    const blockMaterial = new THREE.MeshPhongMaterial({ color: 0x00aaff });
     
-    // cannonHelper = new CannonDebugger(scene, world, {
-    //     color: 0xff0000
-    // });
-
+    // 使用日式颜色数组中的随机颜色
+    const randomColor = japaneseColors[Math.floor(Math.random() * japaneseColors.length)];
+    const blockMaterial = new THREE.MeshBasicMaterial({ color: randomColor });
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
     mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
     scene.add(mesh);
+
+    // 添加边框效果
+    const blockEdges = new THREE.EdgesGeometry(blockGeometry);
+    const blockLine = new THREE.LineSegments(
+        blockEdges,
+        new THREE.LineBasicMaterial({ color: 0x000000 }) // 边框颜色（可根据需要调整）
+    );
+    mesh.add(blockLine);
 
     console.log("✅ 方块已添加到 scene，位置:", mesh.position); 
 
@@ -308,7 +322,8 @@ function animate(time) {
                 obj.position.copy(body.position);
                 obj.quaternion.copy(body.quaternion);
             }
-        }console.log("🔹 遍历物体:", obj.type);
+        }
+        console.log("🔹 遍历物体:", obj.type);
     });
 
     controls.update();
