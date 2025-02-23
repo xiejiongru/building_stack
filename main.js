@@ -7,7 +7,27 @@ import * as CANNON from "cannon-es";
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 场景系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //◇◇◇ 三维场景 ◇◇◇
+// ── 渐变天空背景 ──
+function createGradientTexture() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = size;
+    const context = canvas.getContext('2d');
+    // 创建从上到下的渐变
+    const gradient = context.createLinearGradient(0, 0, 0, size);
+    gradient.addColorStop(0, '#A8DADC'); // 淡青（顶端）
+    gradient.addColorStop(0.5, '#FADADD'); // 樱花粉（中间）
+    gradient.addColorStop(1, '#C7EFCF'); // 若竹色（底部）
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 1, size);
+    const texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+
 const scene = new THREE.Scene();
+scene.background = createGradientTexture();
 
 //◇◇◇ 物理世界 ◇◇◇
 const world = new CANNON.World({
@@ -27,6 +47,7 @@ world.allowSleep = false;           // 禁用自动休眠
 
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 渲染管线 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+
 //▨▨▨ 相机系统 ▨▨▨
 const camera = new THREE.PerspectiveCamera(
     75, 
@@ -40,39 +61,42 @@ console.log("相机位置:", camera.position);
 console.log("相机朝向:", camera.lookAt);
 
 
-//▨▨▨ 光照系统 ▨▨▨
-const light = new THREE.DirectionalLight(0xffffff, 2);
-light.position.set(10, 20, 10);
-scene.add(light);
+// ── 光照系统 ──
+// 环境光（柔和补光）
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(ambientLight);
+console.log("✅ 环境光已添加");
+
+// 主方向光（暖色调，并开启阴影）
+const directionalLight = new THREE.DirectionalLight(0xFFDAB9, 2);
+directionalLight.position.set(10, 20, 10);
+directionalLight.castShadow = true;
+scene.add(directionalLight);
 
 //▨▨▨ 渲染配置 ▨▨▨
 const renderer = new THREE.WebGLRenderer();
 renderer.setClearColor(0xffffff);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
-
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //▶▶▶ 基础元素 ▶▶▶
 const japaneseColors = [
-    0x7B8D8E, // 利休鼠
-    0xE87A90, // 薄红
-    0x6A4C9C, // 桔梗色
-    0x5DAC81, // 若竹色
-    0xF8C3CD, // 樱色
-    0xA5DEE4  // 空色
+    0xFADADD, // 樱花粉
+    0xC7EFCF, // 若竹色
+    0xA8DADC, // 淡青
+    0xF8C3CD, // 额外的柔和色调
+    0xFDE9C7, // 浅奶油
+    0xD3C0EB  // 浅薰衣草
 ];
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 5); // 亮度加大
-scene.add(ambientLight);
-console.log("✅ 环境光已添加");
-
 
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
 const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x008800 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
+ground.receiveShadow = true;
 scene.add(ground);
 
 // 添加边框
@@ -138,6 +162,7 @@ function createBlock() {
     const randomColor = japaneseColors[Math.floor(Math.random() * japaneseColors.length)];
     const blockMaterial = new THREE.MeshBasicMaterial({ color: randomColor });
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
+    mesh.castShadow = true;
     mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
     scene.add(mesh);
 
