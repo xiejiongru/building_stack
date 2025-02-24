@@ -57,15 +57,12 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(0, 20, 30);
 camera.lookAt(0, 0, 0);
-console.log("相机位置:", camera.position);
-console.log("相机朝向:", camera.lookAt);
 
 
 // ── 光照系统 ──
 // 环境光（柔和补光）
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
 scene.add(ambientLight);
-console.log("✅ 环境光已添加");
 
 // 主方向光（暖色调，并开启阴影）
 const directionalLight = new THREE.DirectionalLight(0xFFDAB9, 2);
@@ -90,6 +87,21 @@ const japaneseColors = [
     0xFDE9C7, // 浅奶油
     0xD3C0EB  // 浅薰衣草
 ];
+
+// 定义音频文件列表（相对路径）
+const impactSounds = [
+    "/assets/models/sound/impactWood_heavy_000.ogg",
+    "/assets/models/sound/impactWood_heavy_001.ogg",
+    "/assets/models/sound/impactWood_heavy_002.ogg",
+    "/assets/models/sound/impactWood_heavy_003.ogg"
+];
+
+// 播放随机碰撞音效的函数
+function playRandomImpactSound() {
+    const randomIndex = Math.floor(Math.random() * impactSounds.length);
+    const audio = new Audio(impactSounds[randomIndex]);
+    audio.play();
+}
 
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
@@ -154,7 +166,6 @@ let timerInterval;      // 计时器间隔
 
 //◉◉◉ 方块管理 ◉◉◉
 function createBlock() {
-    console.log("📦 正在创建新方块...");
 
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     
@@ -163,7 +174,7 @@ function createBlock() {
     const blockMaterial = new THREE.MeshBasicMaterial({ color: randomColor });
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
     mesh.castShadow = true;
-    mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
+    mesh.position.set(-5, previousBlock.mesh.position.y + 10, 0);
     scene.add(mesh);
 
     // 添加边框效果
@@ -180,11 +191,25 @@ function createBlock() {
     const body = new CANNON.Body({
         mass: 0,
         material: blockMaterialPhys,
-        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 1, 0),
+        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 10, 0),
         shape: shape,
         allowSleep: false,
         sleepSpeedLimit: 0.1,
         sleepTimeLimit: 1
+    });
+
+    // 在创建完物理体后：
+    mesh.userData.physicsBody = body;
+
+
+    // 添加碰撞事件监听（确保每个方块仅播放一次音效）
+    body.playedSound = false;
+    body.addEventListener('collide', function onCollide(e) {
+        console.log("碰撞事件触发", e);
+        if (!body.playedSound) {
+            playRandomImpactSound();
+            body.playedSound = true;
+        }
     });
 
     world.addBody(body);
@@ -202,7 +227,20 @@ function placeBlock() {
     if (Math.abs(offset) > 2) {
         movingBlock.body.mass = 1;
         movingBlock.body.material = blockMaterialPhys;
+        movingBlock.body.updateMassProperties();
         
+        // 在转换为动态物体后重新添加碰撞监听器
+        (function(body) {
+            // 确保每个物体只播放一次音效
+            body.playedSound = false;
+            body.addEventListener('collide', function onCollide(e) {
+                if (!body.playedSound) {
+                    playRandomImpactSound();
+                    body.playedSound = true;
+                }
+            });
+        })(movingBlock.body);
+
         movingBlock.body.addEventListener('preStep', () => {
             if (movingBlock.body.velocity.x < 4) {
                 movingBlock.body.velocity.x = 5 * Math.sign(offset);
@@ -216,8 +254,6 @@ function placeBlock() {
         movingBlock.body.angularVelocity.set(0, 0, 8 * Math.sign(offset));
 
         movingBlock.body.wakeUp();
-        movingBlock.body.updateMassProperties();
-        movingBlock.body.material.friction = 0.1;
 
         clearInterval(timerInterval); // 停止计时器
         setTimeout(() => {
@@ -232,7 +268,21 @@ function placeBlock() {
     movingBlock.body.allowSleep = false;
     movingBlock.body.wakeUp();
     movingBlock.body.velocity.set(0, -5, 0);
+    movingBlock.body.updateMassProperties();
+    movingBlock.body.material.friction = 0.1;
 
+    // 这里重新添加碰撞监听器，因为此时方块已经动态
+    (function(body) {
+        body.playedSound = false;
+        body.addEventListener('collide', function onCollide(e) {
+            if (!body.playedSound) {
+                playRandomImpactSound();
+                body.playedSound = true;
+            }
+        });
+    })(movingBlock.body);
+
+    movingBlock.body.velocity.set(0, -5, 0);
     if (Math.abs(offset) > 0.5) {
         movingBlock.body.angularVelocity.set(0, 0, Math.sign(offset) * 3);
     }
@@ -253,9 +303,7 @@ function placeBlock() {
         console.log("🔹 场景内物体:", obj.type, obj.name);
     });
 //◉◉◉ 游戏重置 ◉◉◉
-function resetGame() {
-    console.log("🔄 重置游戏，创建初始方块...");
-    
+function resetGame() {    
     while (scene.children.length > 0) scene.remove(scene.children[0]);
     world.bodies = [];
 
@@ -304,7 +352,6 @@ document.addEventListener("keydown", (event) => {
     if (event.code === "KeyC") {  // 按 "C" 重新调整相机
         camera.position.set(0, 50, 100);
         camera.lookAt(0, 0, 0);
-        console.log("📷 相机位置重置:", camera.position);
     }
 });
 
@@ -340,13 +387,10 @@ function animate(time) {
         console.warn("⚠️ `movingBlock` 为空，无法更新位置");
     }
 
-    scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh && obj !== ground) {
-            const body = world.bodies.find(b => Math.abs(b.position.y - obj.position.y) < 0.1);
-            if (body) {
-                obj.position.copy(body.position);
-                obj.quaternion.copy(body.quaternion);
-            }
+    scene.traverse(obj => {
+        if (obj instanceof THREE.Mesh && obj.userData.physicsBody) {
+            obj.position.copy(obj.userData.physicsBody.position);
+            obj.quaternion.copy(obj.userData.physicsBody.quaternion);
         }
         console.log("🔹 遍历物体:", obj.type);
     });
