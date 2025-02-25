@@ -41,11 +41,12 @@ You can run the game locally by following these steps:
 
 2. **Navigate to the project directory:**
    ```bash
-   cd block-stacker
+   cd building_stack
    ```
 3. **Install dependencies:**
    ```bash
    npm install
+   npm run build
    ```
 4. **Run the development server:**
    ```bash

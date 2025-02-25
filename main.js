@@ -79,7 +79,7 @@ document.body.appendChild(renderer.domElement);
 
 //■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //▶▶▶ 基础元素 ▶▶▶
-const japaneseColors = [
+const randomColors = [
     0xFADADD, // 樱花粉
     0xC7EFCF, // 若竹色
     0xA8DADC, // 淡青
@@ -96,12 +96,32 @@ const impactSounds = [
     "/assets/models/sound/impactWood_heavy_003.ogg"
 ];
 
-// 播放随机碰撞音效的函数
+// 全局静音变量，默认声音开启
+let soundMuted = false;
+
+// 修改播放音效的函数，判断是否静音
 function playRandomImpactSound() {
+    if (soundMuted) return; // 如果静音，则直接返回，不播放音效
     const randomIndex = Math.floor(Math.random() * impactSounds.length);
     const audio = new Audio(impactSounds[randomIndex]);
     audio.play();
 }
+
+// 添加静音按钮（默认声音开启）
+const muteButton = document.createElement('button');
+muteButton.innerText = 'Mute';
+muteButton.style.position = 'fixed';
+muteButton.style.bottom = '20px';
+muteButton.style.right = '20px';
+muteButton.style.padding = '10px 20px';
+muteButton.style.fontSize = '16px';
+document.body.appendChild(muteButton);
+
+// 点击按钮切换静音状态
+muteButton.addEventListener('click', () => {
+    soundMuted = !soundMuted;
+    muteButton.innerText = soundMuted ? 'Unmute' : 'Mute';
+});
 
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
@@ -170,11 +190,11 @@ function createBlock() {
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     
     // 使用日式颜色数组中的随机颜色
-    const randomColor = japaneseColors[Math.floor(Math.random() * japaneseColors.length)];
+    const randomColor = randomColors[Math.floor(Math.random() * randomColors.length)];
     const blockMaterial = new THREE.MeshBasicMaterial({ color: randomColor });
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
     mesh.castShadow = true;
-    mesh.position.set(-5, previousBlock.mesh.position.y + 10, 0);
+    mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
     scene.add(mesh);
 
     // 添加边框效果
@@ -191,7 +211,7 @@ function createBlock() {
     const body = new CANNON.Body({
         mass: 0,
         material: blockMaterialPhys,
-        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 10, 0),
+        position: new CANNON.Vec3(-5, previousBlock.body.position.y + 1, 0),
         shape: shape,
         allowSleep: false,
         sleepSpeedLimit: 0.1,
@@ -200,17 +220,6 @@ function createBlock() {
 
     // 在创建完物理体后：
     mesh.userData.physicsBody = body;
-
-
-    // 添加碰撞事件监听（确保每个方块仅播放一次音效）
-    body.playedSound = false;
-    body.addEventListener('collide', function onCollide(e) {
-        console.log("碰撞事件触发", e);
-        if (!body.playedSound) {
-            playRandomImpactSound();
-            body.playedSound = true;
-        }
-    });
 
     world.addBody(body);
     console.log("✅ 物理体已添加到 world，位置:", body.position);
@@ -291,10 +300,11 @@ function placeBlock() {
     movingBlock = null;
     score++;
     updateScore();
+    playRandomImpactSound();
     createBlock();
 
     // 更新相机位置和目标
-    camera.position.y = previousBlock.mesh.position.y + 10;
+    camera.position.y = previousBlock.mesh.position.y + 1;
     controls.target.copy(previousBlock.mesh.position);
     controls.update();
 }
