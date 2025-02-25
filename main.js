@@ -1,24 +1,24 @@
-//══════════════════════════ 核心引擎 ════════════════════════════
+//══════════════════════════ Core Engine ════════════════════════════
 "use strict";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as CANNON from "cannon-es";
 // import CannonDebugger from 'cannon-es-debugger'
 
-//■■■■■■■■■■■■■■■■■■■■■■■ 场景系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
-//◇◇◇ 三维场景 ◇◇◇
-// ── 渐变天空背景 ──
+//■■■■■■■■■■■■■■■■■■■■■■■ Scene System ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◇◇◇ 3D Scene ◇◇◇
+// ── Gradient Sky Background ──
 function createGradientTexture() {
     const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = size;
     const context = canvas.getContext('2d');
-    // 创建从上到下的渐变
+    // Create gradient from top to bottom
     const gradient = context.createLinearGradient(0, 0, 0, size);
-    gradient.addColorStop(0, '#FFB3BA'); // 淡青（顶端）
-    gradient.addColorStop(0.5, '#FFDFBA'); // 樱花粉（中间）
-    gradient.addColorStop(1, '#BAFFC9'); // 若竹色（底部）
+    gradient.addColorStop(0, '#FFB3BA'); // Light cyan (top)
+    gradient.addColorStop(0.5, '#FFDFBA'); // Sakura pink (middle)
+    gradient.addColorStop(1, '#BAFFC9'); // Light bamboo green (bottom)
     context.fillStyle = gradient;
     context.fillRect(0, 0, 1, size);
     const texture = new THREE.Texture(canvas);
@@ -29,26 +29,26 @@ function createGradientTexture() {
 const scene = new THREE.Scene();
 scene.background = createGradientTexture();
 
-//◇◇◇ 物理世界 ◇◇◇
+//◇◇◇ Physics World ◇◇◇
 const world = new CANNON.World({
     gravity: new CANNON.Vec3(0, -9.82, 0),
     defaultContactMaterial: {
-        friction: 0.1,     // 全局默认摩擦系数
-        restitution: 0.5,  // 全局弹性系数
-        contactEquationStiffness: 1e8  // 碰撞计算刚度
+        friction: 0.1,     // Global default friction coefficient
+        restitution: 0.5,  // Global restitution coefficient
+        contactEquationStiffness: 1e8  // Collision calculation stiffness
     }
 });
 
-//◆◆◆ 物理参数 ◆◆◆
-world.solver.iterations = 20;       // 解算器迭代次数（默认10）
-world.solver.tolerance = 0.001;     // 解算容差
-world.broadphase = new CANNON.SAPBroadphase(world);  // 使用SAP宽相位检测
-world.allowSleep = false;           // 禁用自动休眠
+//◆◆◆ Physics Parameters ◆◆◆
+world.solver.iterations = 20;       // Solver iteration count (default 10)
+world.solver.tolerance = 0.001;     // Solver tolerance
+world.broadphase = new CANNON.SAPBroadphase(world);  // Use SAP broadphase detection
+world.allowSleep = false;           // Disable auto sleep
 
 
-//■■■■■■■■■■■■■■■■■■■■■■■ 渲染管线 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//■■■■■■■■■■■■■■■■■■■■■■■ Rendering Pipeline ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 
-//▨▨▨ 相机系统 ▨▨▨
+//▨▨▨ Camera System ▨▨▨
 const camera = new THREE.PerspectiveCamera(
     75, 
     window.innerWidth / window.innerHeight, 
@@ -59,40 +59,36 @@ camera.position.set(0, 20, 30);
 camera.lookAt(0, 0, 0);
 
 
-// ── 光照系统 ──
-// 环境光（柔和补光）
+// ── Lighting System ──
+// Ambient Light (soft lighting)
 const ambientLight = new THREE.AmbientLight(0xFFF5E6, 2.0);
 scene.add(ambientLight);
 
-// 主方向光（暖色调，并开启阴影）
+// Main Directional Light (warm tone, shadow enabled)
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 3.0);
 directionalLight.position.set(10, 20, 10);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
 
-//▨▨▨ 渲染配置 ▨▨▨
+//▨▨▨ Rendering Configuration ▨▨▨
 const renderer = new THREE.WebGLRenderer();
 renderer.setClearColor(0xffffff);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// 在渲染器配置中添加
-renderer.physicallyCorrectLights = true; // 启用物理光照
-renderer.outputEncoding = THREE.sRGBEncoding; // 启用sRGB色彩空间
-
-//■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
-//▶▶▶ 基础元素 ▶▶▶
+//■■■■■■■■■■■■■■■■■■■■■■■ Game Objects ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//▶▶▶ Basic Elements ▶▶▶
 const randomColors = [
-    0xFFB3BA, // 樱花粉
-    0xBAFFC9, // 薄荷绿
-    0xFFDFBA, // 奶油橙
-    0xB4C5E4, // 天蓝色
-    0xFFABAB, // 浅珊瑚
-    0xCBAACB  // 淡紫
+    0xFFB3BA, // Sakura pink
+    0xBAFFC9, // Mint green
+    0xFFDFBA, // Cream orange
+    0xB4C5E4, // Sky blue
+    0xFFABAB, // Light coral
+    0xCBAACB  // Light purple
 ];
 
-// 定义音频文件列表（相对路径）
+// Define audio file list (relative path)
 const impactSounds = [
     "/assets/models/sound/impactWood_heavy_000.ogg",
     "/assets/models/sound/impactWood_heavy_001.ogg",
@@ -100,18 +96,18 @@ const impactSounds = [
     "/assets/models/sound/impactWood_heavy_003.ogg"
 ];
 
-// 全局静音变量，默认声音开启
+// Global mute variable, default sound on
 let soundMuted = false;
 
-// 修改播放音效的函数，判断是否静音
+// Modify the function to play sound effects, check if muted
 function playRandomImpactSound() {
-    if (soundMuted) return; // 如果静音，则直接返回，不播放音效
+    if (soundMuted) return; // If muted, return directly without playing sound
     const randomIndex = Math.floor(Math.random() * impactSounds.length);
     const audio = new Audio(impactSounds[randomIndex]);
     audio.play();
 }
 
-// 添加静音按钮（默认声音开启）
+// Add mute button (default sound on)
 const muteButton = document.createElement('button');
 muteButton.innerText = 'Mute';
 muteButton.style.position = 'fixed';
@@ -121,57 +117,58 @@ muteButton.style.padding = '10px 20px';
 muteButton.style.fontSize = '16px';
 document.body.appendChild(muteButton);
 
-// 点击按钮切换静音状态
+// Click button to toggle mute state
 muteButton.addEventListener('click', () => {
     soundMuted = !soundMuted;
     muteButton.innerText = soundMuted ? 'Unmute' : 'Mute';
 });
 
-//├─ 地面模型
+//├─ Ground Model
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
 const groundMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0x98FB98, // 淡若竹色
+    color: 0x98FB98, // Light bamboo green
     metalness: 0.2,
     roughness: 0.7
-});const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+});
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// 添加边框
+// Add border
 const groundEdges = new THREE.EdgesGeometry(groundGeometry);
 const groundLine = new THREE.LineSegments(
     groundEdges,
-    new THREE.LineBasicMaterial({ color: 0x000000 }) // 边框颜色（此处为黑色，可按需求调整）
+    new THREE.LineBasicMaterial({ color: 0x000000 }) 
 );
 ground.add(groundLine);
 
-//├─ 地面物理体
+//├─ Ground Physics Body
 const groundBody = new CANNON.Body({
-    mass: 0,                        // 静态物体
-    material: new CANNON.Material(),// 物理材质
+    mass: 0,                        // Static object
+    material: new CANNON.Material(),// Physics material
     shape: new CANNON.Box(new CANNON.Vec3(12.5, 0.5, 12.5)),
 });
 groundBody.position.set(0, -0.5, 0);
 world.addBody(groundBody);
 
-//▶▶▶ 动态元素 ▶▶▶
-let movingBlock = null;             // 当前移动方块
-let previousBlock = {               // 上一个放置方块
+//▶▶▶ Dynamic Elements ▶▶▶
+let movingBlock = null;             // Current moving block
+let previousBlock = {               // Previous placed block
     mesh: ground, 
     body: groundBody 
 };
 
-//▶▶▶ 材质系统 ▶▶▶
-//├─ 方块物理材质（摩擦0.3/弹性0.5）
+//▶▶▶ Material System ▶▶▶
+//├─ Block Physics Material (friction 0.3/restitution 0.5)
 const blockMaterialPhys = new CANNON.Material();
 blockMaterialPhys.friction = 0.3;
 blockMaterialPhys.restitution = 0.5;
 
-//└─ 地面物理材质
+//└─ Ground Physics Material
 const groundMaterialPhys = new CANNON.Material();
 
-// 确保所有物理材质都被正确地添加到物理世界中
+// Ensure all physics materials are correctly added to the physics world
 world.addContactMaterial(
     new CANNON.ContactMaterial(
         groundMaterialPhys,
@@ -183,20 +180,20 @@ world.addContactMaterial(
     )
 );
 
-//■■■■■■■■■■■■■■■■■■■■■■■ 游戏逻辑 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
-//◈◈◈ 核心参数 ◈◈◈
-let speed = 0.1;        // 方块移动速度
-let direction = 1;      // 当前移动方向
-let score = 0;          // 游戏得分
-let startTime = Date.now(); // 游戏开始时间
-let timerInterval;      // 计时器间隔
+//■■■■■■■■■■■■■■■■■■■■■■■ Game Logic ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◈◈◈ Core Parameters ◈◈◈
+let speed = 0.1;        // Block movement speed
+let direction = 1;      // Current movement direction
+let score = 0;          // Game score
+let startTime = Date.now(); // Game start time
+let timerInterval;      // Timer interval
 
-//◉◉◉ 方块管理 ◉◉◉
+//◉◉◉ Block Management ◉◉◉
 function createBlock() {
 
     const blockGeometry = new THREE.BoxGeometry(5, 1, 5);
     
-    // 使用日式颜色数组中的随机颜色
+    // Use random color from Japanese color array
     const randomColor = randomColors[Math.floor(Math.random() * randomColors.length)];
         const blockMaterial = new THREE.MeshBasicMaterial({
                 color: randomColor,
@@ -209,11 +206,11 @@ function createBlock() {
     mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
     scene.add(mesh);
 
-    // 添加边框效果
+    // Add border effect
     const blockEdges = new THREE.EdgesGeometry(blockGeometry);
     const blockLine = new THREE.LineSegments(
         blockEdges,
-        new THREE.LineBasicMaterial({ color: 0x000000 }) // 边框颜色（可根据需要调整）
+        new THREE.LineBasicMaterial({ color: 0x000000 }) 
     );
     mesh.add(blockLine);
 
@@ -228,7 +225,7 @@ function createBlock() {
         sleepTimeLimit: 1
     });
 
-    // 在创建完物理体后：
+    // After creating the physics body:
     mesh.userData.physicsBody = body;
 
     world.addBody(body);
@@ -261,7 +258,7 @@ function placeBlock() {
 
         movingBlock.body.wakeUp();
 
-        clearInterval(timerInterval); // 停止计时器
+        clearInterval(timerInterval); // Stop timer
         setTimeout(() => {
             const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
             alert(`Game Over! Your score: ${score} | Time: ${elapsedTime}s`);
@@ -289,16 +286,16 @@ function placeBlock() {
     playRandomImpactSound();
     createBlock();
 
-    // 更新相机位置和目标
+    // Update camera position and target
     camera.position.y = previousBlock.mesh.position.y + 1;
     controls.target.copy(previousBlock.mesh.position);
     controls.update();
 }
 
     scene.traverse(obj => {
-        console.log("🔹 场景内物体:", obj.type, obj.name);
+        console.log("🔹 Objects in scene:", obj.type, obj.name);
     });
-//◉◉◉ 游戏重置 ◉◉◉
+//◉◉◉ Game Reset ◉◉◉
 function resetGame() {    
     while (scene.children.length > 0) scene.remove(scene.children[0]);
     world.bodies = [];
@@ -317,47 +314,47 @@ function resetGame() {
     startTimer();
 }
 
-// 更新分数显示
+// Update score display
 function updateScore() {
     document.getElementById('score').innerText = `Score: ${score}`;
 }
 
-// 更新计时器显示
+// Update timer display
 function updateTimer() {
     const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
     document.getElementById('timer').innerText = `Time: ${elapsedTime}s`;
 }
 
-// 启动计时器
+// Start timer
 function startTimer() {
     timerInterval = setInterval(updateTimer, 1000);
 }
 
-//■■■■■■■■■■■■■■■■■■■■■■■ 控制系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
-//◍◍◍ 用户输入 ◍◍◍
+//■■■■■■■■■■■■■■■■■■■■■■■ Control System ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//◍◍◍ User Input ◍◍◍
 document.addEventListener("keydown", (event) => {
     if (event.code === "Space") placeBlock();
     if (event.code === "KeyR") resetGame();
-    if (event.code === "KeyC") {  // 按 "C" 重新调整相机
+    if (event.code === "KeyC") {  // Press "C" to reposition camera
         camera.position.set(0, 50, 100);
         camera.lookAt(0, 0, 0);
     }
 });
 
-//◍◍◍ 相机控制 ◍◍◍
+//◍◍◍ Camera Control ◍◍◍
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;          // 启用阻尼效果
-controls.dampingFactor = 0.05;          // 阻尼系数
-controls.screenSpacePanning = false;    // 禁用屏幕空间平移
-controls.minDistance = 5;               // 最小缩放距离
-controls.maxDistance = 50;              // 最大缩放距离
-controls.maxPolarAngle = Math.PI / 2;   // 最大俯仰角
-controls.autoRotate = true;             // 自动旋转
-controls.autoRotateSpeed = 0.5;         // 自动旋转速度
+controls.enableDamping = true;          // Enable damping effect
+controls.dampingFactor = 0.05;          // Damping coefficient
+controls.screenSpacePanning = false;    // Disable screen space panning
+controls.minDistance = 5;               // Minimum zoom distance
+controls.maxDistance = 50;              // Maximum zoom distance
+controls.maxPolarAngle = Math.PI / 2;   // Maximum pitch angle
+controls.autoRotate = true;             // Auto rotate
+controls.autoRotateSpeed = 0.5;         // Auto rotate speed
 
-//■■■■■■■■■■■■■■■■■■■■■■■ 动画系统 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+//■■■■■■■■■■■■■■■■■■■■■■■ Animation System ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 let lastTime = 0;
-// let cannonHelper;  // 物理调试器
+// let cannonHelper;  // Physics debugger
 
 function animate(time) {
     requestAnimationFrame(animate);
@@ -369,10 +366,10 @@ function animate(time) {
 
     if (movingBlock && movingBlock.body.mass === 0) {
         movingBlock.body.position.x += speed * direction;
-        console.log("🎥 更新方块位置:", movingBlock.mesh.position);
+        console.log("🎥 Update block position:", movingBlock.mesh.position);
         if (Math.abs(movingBlock.body.position.x) > 5) direction *= -1;
     } else {
-        console.warn("⚠️ `movingBlock` 为空，无法更新位置");
+        console.warn("⚠️ `movingBlock` is null, cannot update position");
     }
 
     scene.traverse(obj => {
@@ -383,11 +380,11 @@ function animate(time) {
     });
 
     controls.update();
-    camera.updateProjectionMatrix(); // 确保相机更新
+    camera.updateProjectionMatrix(); // Ensure camera update
     renderer.render(scene, camera);
 }
 
-//══════════════════════════ 游戏启动 ═══════════════════════════
+//══════════════════════════ Game Start ═══════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
         resetGame();
         animate();

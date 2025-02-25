@@ -3,7 +3,7 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #2E294E; /* 深紫色背景增强对比 */
+  background: #2E294E; 
 }
 
 #hud {

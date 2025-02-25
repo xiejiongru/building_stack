@@ -58,7 +58,7 @@ You can run the game locally by following these steps:
 
 ## 🕹️ Usage
 
-When the page loads, click **"Start"** (or simply begin interacting) to enter the game. The block will begin oscillating horizontally at the top of the stack. When you press the **Space key**:
+When the page loads, we enter the game. The block will begin oscillating horizontally at the top of the stack. When you press the **Space key**:
 
 - The current block is released. Its mass is switched from `0` to `1`, making it dynamic so that it falls under the effect of gravity.
 - If the block is misaligned beyond a certain threshold (e.g., an offset greater than 2 units), it will trigger the **game over sequence** after a short delay.
