@@ -3,6 +3,7 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: #2E294E; /* 深紫色背景增强对比 */
 }
 
 #hud {
@@ -10,7 +11,13 @@ body {
   top: 10px;
   left: 10px;
   color: rgb(0, 0, 0);
-  font-family: Arial, sans-serif;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 2px;
+      color: #FF6B6B !important; 
+      text-shadow: 
+          1px 1px 0 #FFF,
+          -1px -1px 0 #FFF,
+          0 0 10px rgba(255,107,107,0.5);
   font-size: 20px;
   z-index: 100;
 }
@@ -18,3 +25,16 @@ body {
 #timer {
   margin-top: 10px;
 }
+
+button {
+      background: #FF6B6B !important;
+      border: 2px solid #FFF !important;
+      border-radius: 15px !important;
+      box-shadow: 0 0 10px rgba(255,107,107,0.5);
+      transition: all 0.3s ease;
+  }
+  
+  button:hover {
+      transform: scale(1.1);
+      background: #FF8E8E !important;
+  }

@@ -16,9 +16,9 @@ function createGradientTexture() {
     const context = canvas.getContext('2d');
     // 创建从上到下的渐变
     const gradient = context.createLinearGradient(0, 0, 0, size);
-    gradient.addColorStop(0, '#A8DADC'); // 淡青（顶端）
-    gradient.addColorStop(0.5, '#FADADD'); // 樱花粉（中间）
-    gradient.addColorStop(1, '#C7EFCF'); // 若竹色（底部）
+    gradient.addColorStop(0, '#FFB3BA'); // 淡青（顶端）
+    gradient.addColorStop(0.5, '#FFDFBA'); // 樱花粉（中间）
+    gradient.addColorStop(1, '#BAFFC9'); // 若竹色（底部）
     context.fillStyle = gradient;
     context.fillRect(0, 0, 1, size);
     const texture = new THREE.Texture(canvas);
@@ -61,11 +61,11 @@ camera.lookAt(0, 0, 0);
 
 // ── 光照系统 ──
 // 环境光（柔和补光）
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+const ambientLight = new THREE.AmbientLight(0xFFF5E6, 2.0);
 scene.add(ambientLight);
 
 // 主方向光（暖色调，并开启阴影）
-const directionalLight = new THREE.DirectionalLight(0xFFDAB9, 2);
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 3.0);
 directionalLight.position.set(10, 20, 10);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
@@ -77,15 +77,19 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
+// 在渲染器配置中添加
+renderer.physicallyCorrectLights = true; // 启用物理光照
+renderer.outputEncoding = THREE.sRGBEncoding; // 启用sRGB色彩空间
+
 //■■■■■■■■■■■■■■■■■■■■■■■ 游戏对象 ■■■■■■■■■■■■■■■■■■■■■■■■■■■
 //▶▶▶ 基础元素 ▶▶▶
 const randomColors = [
-    0xFADADD, // 樱花粉
-    0xC7EFCF, // 若竹色
-    0xA8DADC, // 淡青
-    0xF8C3CD, // 额外的柔和色调
-    0xFDE9C7, // 浅奶油
-    0xD3C0EB  // 浅薰衣草
+    0xFFB3BA, // 樱花粉
+    0xBAFFC9, // 薄荷绿
+    0xFFDFBA, // 奶油橙
+    0xB4C5E4, // 天蓝色
+    0xFFABAB, // 浅珊瑚
+    0xCBAACB  // 淡紫
 ];
 
 // 定义音频文件列表（相对路径）
@@ -125,8 +129,11 @@ muteButton.addEventListener('click', () => {
 
 //├─ 地面模型
 const groundGeometry = new THREE.BoxGeometry(25, 1, 25);
-const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x008800 });
-const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+const groundMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0x98FB98, // 淡若竹色
+    metalness: 0.2,
+    roughness: 0.7
+});const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.y = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
@@ -191,7 +198,12 @@ function createBlock() {
     
     // 使用日式颜色数组中的随机颜色
     const randomColor = randomColors[Math.floor(Math.random() * randomColors.length)];
-    const blockMaterial = new THREE.MeshBasicMaterial({ color: randomColor });
+        const blockMaterial = new THREE.MeshBasicMaterial({
+                color: randomColor,
+                metalness: 0.1,
+                roughness: 0.5,
+                emissive: 0x333333
+            });
     const mesh = new THREE.Mesh(blockGeometry, blockMaterial);
     mesh.castShadow = true;
     mesh.position.set(-5, previousBlock.mesh.position.y + 1, 0);
@@ -204,8 +216,6 @@ function createBlock() {
         new THREE.LineBasicMaterial({ color: 0x000000 }) // 边框颜色（可根据需要调整）
     );
     mesh.add(blockLine);
-
-    console.log("✅ 方块已添加到 scene，位置:", mesh.position); 
 
     const shape = new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 2.5));
     const body = new CANNON.Body({
@@ -222,7 +232,6 @@ function createBlock() {
     mesh.userData.physicsBody = body;
 
     world.addBody(body);
-    console.log("✅ 物理体已添加到 world，位置:", body.position);
 
     movingBlock = { mesh, body };
 }
@@ -237,18 +246,6 @@ function placeBlock() {
         movingBlock.body.mass = 1;
         movingBlock.body.material = blockMaterialPhys;
         movingBlock.body.updateMassProperties();
-        
-        // 在转换为动态物体后重新添加碰撞监听器
-        (function(body) {
-            // 确保每个物体只播放一次音效
-            body.playedSound = false;
-            body.addEventListener('collide', function onCollide(e) {
-                if (!body.playedSound) {
-                    playRandomImpactSound();
-                    body.playedSound = true;
-                }
-            });
-        })(movingBlock.body);
 
         movingBlock.body.addEventListener('preStep', () => {
             if (movingBlock.body.velocity.x < 4) {
@@ -279,17 +276,6 @@ function placeBlock() {
     movingBlock.body.velocity.set(0, -5, 0);
     movingBlock.body.updateMassProperties();
     movingBlock.body.material.friction = 0.1;
-
-    // 这里重新添加碰撞监听器，因为此时方块已经动态
-    (function(body) {
-        body.playedSound = false;
-        body.addEventListener('collide', function onCollide(e) {
-            if (!body.playedSound) {
-                playRandomImpactSound();
-                body.playedSound = true;
-            }
-        });
-    })(movingBlock.body);
 
     movingBlock.body.velocity.set(0, -5, 0);
     if (Math.abs(offset) > 0.5) {
@@ -326,16 +312,9 @@ function resetGame() {
     updateScore();
     updateTimer();
 
-    console.log("🎲 创建方块前, scene.children.length =", scene.children.length);
     createBlock();
-    console.log("🎲 创建方块后, scene.children.length =", scene.children.length);
 
     startTimer();
-
-    // // 初始化相机位置和目标
-    // camera.position.set(0, 15, 20);
-    // controls.target.copy(previousBlock.mesh.position);
-    // controls.update();
 }
 
 // 更新分数显示
@@ -386,7 +365,6 @@ function animate(time) {
     lastTime = time;
 
     world.step(1/60, delta, 3);
-    console.log("🎥 渲染帧");
     // cannonHelper.update();
 
     if (movingBlock && movingBlock.body.mass === 0) {
@@ -402,7 +380,6 @@ function animate(time) {
             obj.position.copy(obj.userData.physicsBody.position);
             obj.quaternion.copy(obj.userData.physicsBody.quaternion);
         }
-        console.log("🔹 遍历物体:", obj.type);
     });
 
     controls.update();
